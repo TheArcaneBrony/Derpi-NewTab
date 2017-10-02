@@ -1,9 +1,9 @@
 {
 	"manifest_version": 2,
 	
-	"name": "Derpi-New Tab",
-	"description": "A new tab page featuring the latest pony wallpaper from Derpibooru.org",
-	"version": "1.0.3",
+	"name": "TheArcaneBrony's Derpi-New Tab",
+	"description": "A new tab page featuring the latest pony wallpaper from Derpibooru.org. Based on Seinopsys' Derpi-New Tab",
+	"version": "1.0.4",
 	
 	"permissions": [ "https://derpibooru.org/", "https://derpicdn.net/" ],
 	
