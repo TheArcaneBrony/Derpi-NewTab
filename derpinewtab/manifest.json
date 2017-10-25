@@ -3,7 +3,7 @@
 	
 	"name": "TheArcaneBrony's Derpi-New Tab",
 	"description": "A new tab page featuring the latest pony wallpaper from Derpibooru.org. Based on Seinopsys' Derpi-New Tab",
-	"version": "1.0.4",
+	"version": "1.0.7",
 	
 	"permissions": [ "https://derpibooru.org/", "https://derpicdn.net/" ],
 	

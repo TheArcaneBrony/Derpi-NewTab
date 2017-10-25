@@ -1,239 +1,518 @@
-"use strict";
-$(function() {
-    function e(e) {
-        if ("string" == typeof e) k = e;
-        else if ("string" != typeof k) return;
-        var t = k.replace(/"/g, "%22"),
-            a = '#image{background-image:url("' + t + '");background-size:' + o.crop + "}";
-        "contain" === o.crop && (u.css("opacity", ""), a += '#image-ghost{display:block;background-image:url("' + t + '")}'), m.html(a)
-    }
+/* global LStorage,updateMetadataSettings */
+$(function(){
+	'use strict';
 
-    function t(a) {
-        function l(t, a) {
-            var n = t.tags.split(", "),
-                o = [];
-            $.each(n, function(e, t) {
-                0 === t.indexOf("artist:") && o.push(t.substring(7))
-            });
-            var s = o.length ? "By " + i(o) : "Artist unknown";
-            v.empty().append('<h1><a href="https://derpibooru.org/' + t.id + '">' + s + "</a></h1>"), v.children("h1").simplemarquee({
-                speed: 25,
-                cycles: 1 / 0,
-                space: 25,
-                handleHover: !1,
-                delayBetweenCycles: 0
-            });
-            var r = "",
-                l = t.comment_count;
-            t.upvotes + t.downvotes === 0 ? r = "no votes" : t.upvotes > 0 ? (r += t.upvotes + " upvote", t.upvotes > 1 && (r += "s"), t.downvotes > 0 && (r += " and " + t.downvotes + " downvote", t.downvotes > 1 && (r += "s"))) : t.downvotes > 0 && (r += t.downvotes + " downvote" + (t.downvotes > 1 ? "s" : "")), v.append('<p>\n\t\t\t\t\t<span class="uploadtime visible">uploaded <time datetime="' + t.created_at + '"></time> by ' + t.uploader + '</span>\n\t\t\t\t\t<span class="votes">' + r + '</span>\n\t\t\t\t\t<span class="comments">' + (l > 0 ? l : "no") + " comment" + (1 !== l ? "s" : "") + "</span>\n\t\t\t\t</p>"), updateMetadataSettings(), window.updateTimesF(), e(a), g(), p()
-        }
+	$.getJSON('manifest.json',function(data){
+		if (!data) return;
 
-        function g() {
-            h.css("opacity", 1), c.on("mousemove", $.throttle(100, function() {
-                return !!document.getElementById("dialog") || (f.css("opacity", "1"), f.on("mouseenter", "> *", function() {
-                    $(this).addClass("hover")
-                }).on("mouseleave", "> *", function() {
-                    $(this).removeClass("hover")
-                }), void p())
-            })), c.triggerHandler("mousemove"), S.attr("disabled", !1).on("click", function(e) {
-                e.preventDefault(), r.toggleClass("open"), c.triggerHandler("mousemove")
-            })
-        }
+		$('#disp-version').text(' v'+data.version);
+	});
 
-        function p() {
-            u !== !1 && (clearTimeout(u), u = !1), r.hasClass("open") || (u = setTimeout(m, 2e3))
-        }
-        c.removeClass("notloading"), d.find(".re-request:visible").slideUp(), $.ajax({
-            url: "https://trixiebooru.org/search.json?filter_id=" + (o.filterID || s) + "&q=wallpaper+%26%26+(" + o.allowedTags.join("+%7C%7C+") + ")+%26%26+-equestria+girls" + ("number" == typeof a ? "&page=" + a : ""),
-            success: function(e) {
-                var i = void 0,
-                    s = new Image,
-                    r = -1;
-                if (e = e.search, 0 === e.length) return g(), c.addClass("notloading"), void v.html("<h1>Search returned no results.</h1>" + (o.allowedTags.indexOf("safe") === -1 ? "<p>Try enabling the safe system tag.</p>" : ""));
-                for (; ++r < e.length - 1;)
-                    if (e[r].width >= 1280 && e[r].height >= 720 && e[r].width <= 4096 && e[r].height <= 4096) {
-                        i = e[r];
-                        break
-                    }
-                return c.addClass("notloading"), "undefined" == typeof i ? t("number" == typeof a ? a + 1 : 2) : void(LStorage.has("image_hash") && LStorage.get("image_hash") === i.sha512_hash ? l(i, n()) : ("undefined" == typeof a && v.html("<h1>Searching for new image...</h1>").css("opacity", "1"), s.src = "http://" + i.image, $(s).on("load", function() {
-                    LStorage.set("image_data", s.src), LStorage.set("image_hash", i.sha512_hash), l(i, s.src)
-                }).on("error", function() {
-                    return v.html("<h1>Image has not been rendered yet</h1><p>Try reloading in a minute or so</p>"), g(), t("number" == typeof a ? a + 1 : 2)
-                })))
-            },
-            error: function() {
-                c.addClass("notloading"), v.html("<h1>There was an error while fetching the image data</h1><p>" + (navigator.onLine ? "Derpibooru may be down for maintenance, try again later." : "You are not conected to the Internet.") + "</p>")
-            }
-        });
-        var u = !1,
-            m = function y() {
-                f.children(".hover").length ? u = setTimeout(y, 2e3) : f.css("opacity", 0)
-            }
-    }
+	//Setting check
+	let settings = {
+			allowedTags: [],
+			metadata: {},
+			crop: undefined,
+			filterID: undefined,
+		},
+		everythingFilterID = 56027,
+		$settingsWrap = $('#settingsWrap'),
+		$settings = $('#settings'),
+		$tagSettings = $('#tag-settings'),
+		$body = $('body'),
+		$metaSettings = $('#metadata-settings'),
+		$cropSettings = $('#crop-settings'),
+		$image = $('#image'),
+		$imageGhost = $('#image-ghost'),
+		$fadeLayer = $('#fade-layer'),
+		$data = $('#data'),
+		$style = $('#style'),
+		$filterID = $('#filter-id'),
+		$filterIDSelect = $('#filter-id-select'),
+		$signinFilter = $('#signin-filter'),
+		$usefilterInput = $tagSettings.find('.usefilter input'),
+		$showSettingsButton = $('#show-settings-button'),
+		_currentImageURL;
 
-    function a() {
-        c.off("mousemove"), S.off("click").attr("disabled", !0), r.removeClass("open")
-    }
+	$.get('https://derpibooru.org/filters',function(data){
+		let $data = $(data.replace(/src="[^"]+?"/g,'')),
+			$optg = {
+				your: $(document.createElement('optgroup')).attr('label','My Filters'),
+				global: $(document.createElement('optgroup')).attr('label','Global Filters'),
+			},
+			userpage = $data.find('.header__link.header__link-user').attr('href');
 
-    function n() {
-        return LStorage.get("image_data")
-    }
+		if (!userpage){
+			$signinFilter.addClass('nope').attr('title','You must be signed in on Derpibooru.org to see your own filters.');
+		}
 
-    function i(e, t, a) {
-        "undefined" == typeof t && (t = "and"), "undefined" == typeof a && (a = ",");
-        var n = void 0;
-        if ("string" == typeof e && (e = e.split(a)), e.length > 1) {
-            n = e;
-            var i = n.length,
-                o = i - 3,
-                s = 0;
-            for (n.splice(i - 1, 0, t); s <= o;) s !== i - 1 && (n[s] += ",", s++);
-            n = n.join(" ")
-        } else n = e[0];
-        return n
-    }
-    $.getJSON("manifest.json", function(e) {
-        e && $("#disp-version").text(" v" + e.version)
-    });
-    var o = {
-            allowedTags: [],
-            metadata: {},
-            crop: void 0,
-            filterID: void 0
-        },
-        s = 56027,
-        r = $("#settingsWrap"),
-        l = $("#settings"),
-        d = $("#tag-settings"),
-        c = $("body"),
-        g = $("#metadata-settings"),
-        p = $("#crop-settings"),
-        h = $("#image"),
-        u = $("#image-ghost"),
-        f = $("#fade-layer"),
-        v = $("#data"),
-        m = $("#style"),
-        y = $("#filter-id"),
-        w = $("#filter-id-select"),
-        b = $("#signin-filter"),
-        _ = d.find(".usefilter input"),
-        S = $("#show-settings-button"),
-        k = void 0;
-    $.get("https://derpibooru.org/filters", function(e) {
-            var t = $(e.replace(/src="[^"]+?"/g, "")),
-                a = {
-                    your: $(document.createElement("optgroup")).attr("label", "My Filters"),
-                    global: $(document.createElement("optgroup")).attr("label", "Global Filters")
-                },
-                n = t.find(".header__link.header__link-user").attr("href");
-            n || b.addClass("nope").attr("title", "You must be signed in on Derpibooru.org to see your own filters."), t.find(".filter").each(function() {
-                var e = $(this),
-                    t = e.children("h3").text(),
-                    i = parseInt(e.children(".filter-options").find('a[href^="/filters/"]').attr("href").replace(/\D/g, ""), 10);
-                i !== s && a[e.find('a[href="' + n + '"]').length ? "your" : "global"].append($(document.createElement("option")).attr("value", i).text(t))
-            }), a.your.children().length && w.append(a.your), w.append(a.global), o.filterID ? w.find('option[value="' + o.filterID + '"]').length ? w.val(o.filterID) : w.val("???") : w.val("")
-        }),
-        function() {
-            function e() {
-                "number" == typeof i && (clearInterval(i), i = void 0), "number" == typeof s && (clearInterval(s), s = void 0);
-                var e = 6,
-                    n = function() {
-                        if (0 === --e) return clearInterval(s);
-                        var t = d.find(".re-request span").text(e + " second" + (1 !== e ? "s" : "")).parent();
-                        t.is(":visible") || t.stop().hide().slideDown()
-                    },
-                    r = [];
-                s = setInterval(n, 1e3), n(), i = setTimeout(function() {
-                    c.children().each(function(e, t) {
-                        var a = $(t).find("input"),
-                            n = a.attr("name");
-                        a.prop("checked") && r.push(n)
-                    });
-                    var e = r.length > 0,
-                        n = parseInt(y.val(), 10),
-                        i = !isNaN(n);
-                    e && (o.allowedTags = r, LStorage.set("setting_allowed_tags", r.join(","))), i ? (o.filterID = n, LStorage.set("setting_filterid", o.filterID)) : (_.prop("checked", !1), o.filterID = void 0, LStorage.del("setting_filterid")), (e || i) && (h.css("opacity", "0"), u.css("opacity", "0"), a(), setTimeout(t, 300))
-                }, 5e3)
-            }
-            var n = ["safe", "suggestive", "questionable", "explicit", "grimdark", "grotesque", "foalcon","","","animated", "*"],
-                i = void 0,
-                s = void 0;
-            if (LStorage.has("setting_allowed_tags")) {
-                var r = LStorage.get("setting_allowed_tags").split(",");
-                $.each(r, function(e, t) {
-                    n.indexOf(t) > -1 && o.allowedTags.push(t)
-                }), o.allowedTags.length > 0 && LStorage.set("setting_allowed_tags", o.allowedTags.join(","))
-            }
-            0 === o.allowedTags.length && (LStorage.set("setting_allowed_tags", "safe"), o.allowedTags = ["safe"]);
-            var c = l.find(".systags");
-            if ($.each(n, function(e, t) {
-                    c.append($(document.createElement("label")).append($(document.createElement("input")).attr({
-                        type: "checkbox",
-                        name: t,
-                        checked: o.allowedTags.indexOf(t) > -1
-                    }), "<span>" + t + "</span>"))
-                }), l.find(".systags label span").on("click", function(t) {
-                    t.preventDefault();
-                    var a = $(this).prev();
-                    a.prop("checked", !a.prop("checked")), e()
-                }), LStorage.has("setting_filterid")) {
-                var g = parseInt(LStorage.get("setting_filterid"), 10);
-                isNaN(g) ? LStorage.del("setting_filterid") : (o.filterID = g, _.prop("checked", !0), y.val(o.filterID).trigger("change"))
-            }
-            0 === o.allowedTags.length && (LStorage.set("setting_allowed_tags", "safe"), o.allowedTags = ["safe"]), _.on("click", function() {
-                var e = $(this),
-                    t = e.prop("checked");
-                t || y.val("").trigger("change")
-            }), w.on("change keyup", function() {
-                var e = w.val();
-                e && /^\d+$/.test(e) && (_.prop("checked") !== !0 && _.prop("checked", !0), y.val(e).trigger("change"))
-            }), y.on("change keyup", function() {
-                if (w.find('option[value="' + y.val() + '"]').length ? w.val(y.val()) : w.val("???"), y.is(":valid")) {
-                    var t = o.filterID ? o.filterID : "";
-                    y.val() !== t && e()
-                }
-            })
-        }(),
-        function() {
-            function e(e) {
-                e !== !0 && LStorage.set("setting_metadata", a.join(",")), t.each(function() {
-                    $("#data ." + this.name.substring(4))[a.indexOf(this.name) > -1 ? "show" : "hide"]()
-                }), v.find("p span").filter(":visible").addClass("visible").last().removeClass("visible")
-            }
-            var t = g.find(".switch input"),
-                a = void 0;
-            t.each(function() {
-                o.metadata[this.name] = !1
-            }), LStorage.has("setting_metadata") ? (a = LStorage.get("setting_metadata"), a = 0 === a.length ? [] : a.split(",")) : (a = Object.keys(o.metadata), LStorage.set("setting_metadata", a.join(","))), $.each(a, function(e, t) {
-                "undefined" != typeof o.metadata[t] ? o.metadata[t] = !0 : delete a[e]
-            }), window.updateMetadataSettings = function() {
-                e()
-            }, e(), t.each(function() {
-                this.checked = !!o.metadata[this.name], $(this).prop("checked", this.checked)
-            }), g.find(".switch input").on("click", function(t) {
-                t.stopPropagation();
-                var n = this.name,
-                    i = a.indexOf(n);
-                i === -1 ? a.push(n) : a.splice(i, 1), e()
-            })
-        }(),
-        function() {
-            function t() {
-                var t = o.crop;
-                ["contain", "cover", "100% 100%"].indexOf(t) === -1 && (t = "cover"), LStorage.set("setting_crop", t), o.crop = t, a.val(t), e()
-            }
-            var a = p.find(".input-field select");
-            LStorage.has("setting_crop") ? o.crop = LStorage.get("setting_crop") : (o.crop = "contain", LStorage.set("setting_crop", o.crop)), window.updateCroppingSettings = function() {
-                t()
-            }, t(), a.on("change", function() {
-                o.crop = a.val(), t()
-            })
-        }(), LStorage.has("image_data") && LStorage.has("image_hash") && (e(LStorage.get("image_data")), h.css("opacity", "1").attr("data-hash", LStorage.get("image_hash"))), t(), v.html("<h1>Requesting metadata...</h1>").css("opacity", 1), LStorage.has("firstrun") || $(document.createElement("div")).attr("id", "dialog").html('<div id="dialog-inner"><h1>Welcome to Derpi-New Tab</h1><p>To access the settings click the <i class="material-icons">menu</i> icon in the bottom left of the browser window.<br><span style="color:rgba(255,255,255,.5)">(this message is only displayed once)</span></p></div>').children().append($(document.createElement("button")).text("Got it").on("click", function(e) {
-            e.preventDefault(), LStorage.set("firstrun", 1);
-            var t = $("#dialog").addClass("gtfo");
-            setTimeout(function() {
-                t.remove()
-            }, 550)
-        })).end().prependTo(c), p.find("select").material_select()
+		$data.find('.filter').each(function(){
+			let $filter = $(this),
+				name = $filter.children('h3').text(),
+				id = parseInt($filter.children('.filter-options').find('a[href^="/filters/"]').attr('href').replace(/\D/g,''), 10);
+
+			if (id === everythingFilterID)
+				return;
+
+			$optg[$filter.find('a[href="'+userpage+'"]').length ? 'your' : 'global'].append($(document.createElement('option')).attr('value',id).text(name));
+		});
+
+		if ($optg.your.children().length)
+			$filterIDSelect.append($optg.your);
+		$filterIDSelect.append($optg.global);
+		if (settings.filterID){
+			if ($filterIDSelect.find('option[value="'+settings.filterID+'"]').length)
+				$filterIDSelect.val(settings.filterID);
+			else $filterIDSelect.val('???');
+		}
+		else $filterIDSelect.val('');
+	});
+
+	// Tag settings
+	(function TagSettings(){
+		let possibleTags = ['safe','suggestive','questionable','explicit'],
+			tagselectTimeout, tagselectCountdownInterval;
+		if (LStorage.has('setting_allowed_tags')){
+			let setTags = LStorage.get('setting_allowed_tags').split(',');
+			$.each(setTags,function(i,el){
+				if (possibleTags.indexOf(el) > -1)
+					settings.allowedTags.push(el);
+			});
+			if (settings.allowedTags.length > 0) LStorage.set('setting_allowed_tags',settings.allowedTags.join(','));
+		}
+		if (settings.allowedTags.length === 0){
+			LStorage.set('setting_allowed_tags','safe');
+			settings.allowedTags = ['safe'];
+		}
+		let $systags = $settings.find('.systags');
+		$.each(possibleTags,function(i,el){
+			$systags.append(
+				$(document.createElement('label')).append(
+					$(document.createElement('input')).attr({
+						type: 'checkbox',
+						name: el,
+						checked: settings.allowedTags.indexOf(el) > -1,
+					}),
+					'<span>'+el+'</span>'
+				)
+			);
+		});
+		function tagSelectCountdownStarter(){
+			if (typeof tagselectTimeout === 'number'){
+				clearInterval(tagselectTimeout);
+				//noinspection JSUnusedAssignment
+				tagselectTimeout = undefined;
+			}
+			if (typeof tagselectCountdownInterval === "number"){
+				clearInterval(tagselectCountdownInterval);
+				tagselectCountdownInterval = undefined;
+			}
+
+			let i = 6,
+				tagSelectCountdown = function(){
+					if (--i === 0) return clearInterval(tagselectCountdownInterval);
+
+					let $elem = $tagSettings.find('.re-request span').text(i+' second'+(i !== 1 ? 's':'')).parent();
+					if (!$elem.is(':visible')) $elem.stop().hide().slideDown();
+				},
+				tagArray = [];
+
+			tagselectCountdownInterval = setInterval(tagSelectCountdown,1000);
+			tagSelectCountdown();
+			tagselectTimeout = setTimeout(function(){
+				$systags.children().each(function(i,el){
+					let $input = $(el).find('input'),
+						tag = $input.attr('name');
+					if ($input.prop('checked'))
+						tagArray.push(tag);
+				});
+
+				let tagsCond = tagArray.length > 0,
+					val = parseInt($filterID.val(), 10),
+					filterCond = !isNaN(val);
+
+				if (tagsCond){
+					settings.allowedTags = tagArray;
+					LStorage.set('setting_allowed_tags',tagArray.join(','));
+				}
+				if (filterCond){
+					settings.filterID = val;
+					LStorage.set('setting_filterid',settings.filterID);
+				}
+				else {
+					$usefilterInput.prop('checked', false);
+					settings.filterID = undefined;
+					LStorage.del('setting_filterid');
+				}
+				if (tagsCond || filterCond){
+					$image.css('opacity','0');
+					$imageGhost.css('opacity','0');
+					unbindHandlers();
+
+					setTimeout(reQuest,300);
+				}
+			}, 5000);
+		}
+		$settings.find('.systags label span').on('click',function(e){
+			e.preventDefault();
+
+			let $thisInput = $(this).prev();
+			$thisInput.prop('checked',!$thisInput.prop('checked'));
+
+			tagSelectCountdownStarter();
+		});
+
+		if (LStorage.has('setting_filterid')){
+			let filterid = parseInt(LStorage.get('setting_filterid'), 10);
+			if (isNaN(filterid))
+				LStorage.del('setting_filterid');
+			else {
+				settings.filterID = filterid;
+				$usefilterInput.prop('checked', true);
+				$filterID.val(settings.filterID).trigger('change');
+			}
+		}
+		if (settings.allowedTags.length === 0){
+			LStorage.set('setting_allowed_tags','safe');
+			settings.allowedTags = ['safe'];
+		}
+		$usefilterInput.on('click',function(){
+			let $this = $(this),
+				checked = $this.prop('checked');
+
+			if (!checked)
+				$filterID.val('').trigger('change');
+		});
+		$filterIDSelect.on('change keyup',function(){
+			let val = $filterIDSelect.val();
+			if (val && /^\d+$/.test(val)){
+				if ($usefilterInput.prop('checked') !== true)
+					$usefilterInput.prop('checked', true);
+				$filterID.val(val).trigger('change');
+			}
+		});
+		$filterID.on('change keyup',function(){
+			if ($filterIDSelect.find('option[value="'+$filterID.val()+'"]').length)
+				$filterIDSelect.val($filterID.val());
+			else $filterIDSelect.val('???');
+			if (!$filterID.is(':valid'))
+				return;
+
+			let currFilter = settings.filterID ? settings.filterID : '';
+			if ($filterID.val() !== currFilter)
+				tagSelectCountdownStarter();
+		});
+	})();
+	// Metadata settings
+	(function MatadataSettings(){
+		let $inputs = $metaSettings.find('.switch input'), keys;
+		$inputs.each(function(){
+			settings.metadata[this.name] = false;
+		});
+		
+		if (!LStorage.has('setting_metadata')){
+			keys = Object.keys(settings.metadata);
+			LStorage.set('setting_metadata',keys.join(','));
+		}
+		else {
+			keys = LStorage.get('setting_metadata');
+			if (keys.length === 0) keys = [];
+			else keys = keys.split(',');
+		}
+		
+		$.each(keys,function(i,el){
+			if (typeof settings.metadata[el] !== 'undefined')
+				settings.metadata[el] = true;
+			else delete keys[i];
+		});
+		
+		function updateMetadataSettings(noupdatekeys){
+			if (noupdatekeys !== true) LStorage.set('setting_metadata',keys.join(','));
+			
+			$inputs.each(function(){
+				$('#data .'+this.name.substring(4))[keys.indexOf(this.name) > -1?'show':'hide']();
+			});
+			
+			$data.find('p span').filter(':visible').addClass('visible').last().removeClass('visible');
+		}
+		window.updateMetadataSettings = function(){ updateMetadataSettings() };
+		
+		updateMetadataSettings();
+		
+		$inputs.each(function(){
+			this.checked = !!settings.metadata[this.name];
+			$(this).prop('checked',this.checked);
+		});
+		$metaSettings.find('.switch input').on('click',function(e){
+			e.stopPropagation();
+			
+			let nameAttr = this.name,
+				attrIndx = keys.indexOf(nameAttr);
+			
+			if (attrIndx === -1) keys.push(nameAttr);
+			else keys.splice(attrIndx, 1);
+			
+			updateMetadataSettings();
+		});
+	})();
+	// Image cropping settings
+	(function ImageCroppingSettings(){
+		let $select = $cropSettings.find('.input-field select');
+
+		if (!LStorage.has('setting_crop')){
+			settings.crop = 'contain';
+			LStorage.set('setting_crop', settings.crop);
+		}
+		else settings.crop = LStorage.get('setting_crop');
+
+		function updateCroppingSettings(){
+			let setTo = settings.crop;
+			if (['contain','cover','100% 100%'].indexOf(setTo) === -1)
+				setTo = 'cover';
+
+			LStorage.set('setting_crop', setTo);
+			settings.crop = setTo;
+			$select.val(setTo);
+			setBackgroundStyles();
+		}
+		window.updateCroppingSettings = function(){ updateCroppingSettings() };
+
+		updateCroppingSettings();
+
+		$select.on('change',function(){
+			settings.crop = $select.val();
+
+			updateCroppingSettings();
+		});
+	})();
+
+	// Background size updater
+	function setBackgroundStyles(image_url){
+		if (typeof image_url === 'string')
+			_currentImageURL = image_url;
+		else if (typeof _currentImageURL !== 'string')
+			return;
+		let url = _currentImageURL.replace(/"/g, '%22'),
+			styles = '#image{background-image:url("'+url+'");background-size:'+settings.crop+'}';
+		if (settings.crop === 'contain'){
+			$imageGhost.css('opacity','');
+			styles += '#image-ghost{display:block;background-image:url("'+url+'")}';
+		}
+
+		$style.html(styles);
+	}
+
+	// Begin site
+	if (LStorage.has("image_data") && LStorage.has("image_hash")){
+		setBackgroundStyles(LStorage.get("image_data"));
+		$image.css('opacity','1').attr('data-hash',LStorage.get('image_hash'));
+	}
+
+	reQuest();
+
+	$data.html('<h1>Requesting metadata...</h1>').css('opacity', 1);
+	function reQuest(page){
+		$body.removeClass('notloading');
+		$tagSettings.find('.re-request:visible').slideUp();
+		
+		$.ajax({
+			url: 'https://trixiebooru.org/search.json'+
+			        '?filter_id='+(settings.filterID||everythingFilterID)+
+			        '&q=wallpaper+%26%26+('+settings.allowedTags.join('+%7C%7C+')+')+%26%26+-equestria+girls'+
+			        (typeof page === 'number' ? '&page='+page : ''),
+			success: function(data){
+				let image, imgElement = new Image(), i = -1;
+				
+				data = data.search;
+				
+				if (data.length === 0) {
+					fadeIt();
+					$body.addClass('notloading');
+					$data.html('<h1>Search returned no results.</h1>' + (settings.allowedTags.indexOf('safe') === -1 ? '<p>Try enabling the safe system tag.</p>' : ''));
+					return;
+				}
+				
+				while (++i < data.length-1){
+					// Optimal size images are above 720p and below 4096px in width & height, since larger images will make the browser lag
+					if (data[i].width >= 1280 && data[i].height >= 720 && data[i].width <= 4096 && data[i].height <= 4096){
+						image = data[i];
+						break;
+					}
+				}
+				$body.addClass('notloading');
+				
+				if (typeof image === 'undefined')
+					return reQuest(typeof page === 'number' ? page+1 : 2);
+				
+				if (!LStorage.has("image_hash") || LStorage.get("image_hash") !== image.sha512_hash){
+					if (typeof page === 'undefined')
+						$data.html('<h1>Searching for new image...</h1>').css('opacity','1');
+					
+					imgElement.src = 'http://'+image.image;
+					$(imgElement).on('load',function(){
+						// Save image into localStorage
+						LStorage.set("image_data", imgElement.src);
+						LStorage.set("image_hash", image.sha512_hash);
+						
+						metadata(image, imgElement.src);
+					}).on('error', function(){
+						$data.html('<h1>Image has not been rendered yet</h1><p>Try reloading in a minute or so</p>');
+						fadeIt();
+						return reQuest(typeof page === 'number' ? page+1 : 2);
+					});
+				}
+				else metadata(image, getCachedIMGURL());
+			},
+			error: function(){
+				$body.addClass('notloading');
+				$data.html('<h1>There was an error while fetching the image data</h1><p>'+(navigator.onLine ? 'Derpibooru may be down for maintenance, try again later.' : 'You are not conected to the Internet.')+'</p>');
+			}
+		});
+		
+		function metadata(image,cachedurl){
+			let tags = image.tags.split(', '),
+				artists = [];
+			
+			$.each(tags,function(i,el){
+				if (el.indexOf('artist:') === 0)
+					artists.push(el.substring(7));
+			});
+			
+			let artistText = artists.length ? 'By '+textify(artists) : 'Artist unknown';
+			
+			$data.empty().append('<h1><a href="https://derpibooru.org/'+image.id+'">'+artistText+'</a></h1>');
+
+			$data.children('h1').simplemarquee({
+			    speed: 25,
+			    cycles: Infinity,
+			    space: 25,
+			    handleHover: false,
+			    delayBetweenCycles: 0,
+			});
+			
+			let votestr = '', cc = image.comment_count;
+			if (image.upvotes + image.downvotes === 0) votestr = 'no votes';
+			else {
+				if (image.upvotes > 0){
+					votestr += image.upvotes+' upvote';
+					if (image.upvotes > 1) votestr += 's';
+					if (image.downvotes > 0){
+						votestr += ' and '+image.downvotes+' downvote';
+						if (image.downvotes > 1) votestr += 's';
+					}
+				}
+				else if (image.downvotes > 0) votestr += image.downvotes+' downvote'+(image.downvotes>1?'s':'');
+			}
+			
+			$data.append(
+				`<p>
+					<span class="uploadtime visible">uploaded <time datetime="${image.created_at}"></time> by ${image.uploader}</span>
+					<span class="votes">${votestr}</span>
+					<span class="comments">${cc>0?cc:'no'} comment${cc!==1?'s':''}</span>
+				</p>`
+			);
+			updateMetadataSettings();
+			window.updateTimesF();
+
+			setBackgroundStyles(cachedurl);
+			fadeIt();
+			fadeOutData();
+		}
+		
+		let movetimeout = false,
+			hideFunction = function(){
+				if (!$fadeLayer.children('.hover').length)
+					$fadeLayer.css('opacity', 0);
+				else movetimeout = setTimeout(hideFunction, 2000);
+			};
+		function fadeIt(){
+			$image.css('opacity', 1);
+
+			$body.on('mousemove',$.throttle(100,function(){
+				if (document.getElementById('dialog'))
+					return true;
+				$fadeLayer.css('opacity','1');
+				$fadeLayer.on('mouseenter','> *',function(){
+					$(this).addClass('hover');
+				}).on('mouseleave','> *',function(){
+					$(this).removeClass('hover');
+				});
+				fadeOutData();
+			}));
+			$body.triggerHandler('mousemove');
+			$showSettingsButton.attr('disabled', false).on('click',function(e){
+				e.preventDefault();
+
+				$settingsWrap.toggleClass('open');
+				$body.triggerHandler('mousemove');
+			});
+		}
+		
+		function fadeOutData(){
+			if (movetimeout !== false){
+				clearTimeout(movetimeout);
+				//noinspection JSUnusedAssignment
+				movetimeout = false;
+			}
+			if (!$settingsWrap.hasClass('open'))
+				movetimeout = setTimeout(hideFunction, 2000);
+		}
+	}
+
+	function unbindHandlers(){
+		$body.off('mousemove');
+		$showSettingsButton.off('click').attr('disabled', true);
+		$settingsWrap.removeClass('open');
+	}
+	
+	function getCachedIMGURL(){
+		return LStorage.get("image_data");
+	}
+
+	// First run dialog
+	if (!LStorage.has('firstrun')){
+		$(document.createElement('div'))
+			.attr('id','dialog')
+			.html('<div id="dialog-inner"><h1>Welcome to Derpi-New Tab</h1><p>To access the settings click the <i class="material-icons">menu</i> icon in the bottom left of the browser window.<br><span style="color:rgba(255,255,255,.5)">(this message is only displayed once)</span></p></div>')
+			.children()
+			.append($(document.createElement('button')).text('Got it').on('click',function(e){
+				e.preventDefault();
+
+				LStorage.set('firstrun',1);
+				let $dialog = $('#dialog').addClass('gtfo');
+				setTimeout(function(){
+					$dialog.remove();
+				}, 550);
+			}))
+			.end()
+			.prependTo($body);
+	}
+
+    $cropSettings.find('select').material_select();
+		
+	// List textifier
+	function textify(list, append, separator){
+		if (typeof append === 'undefined') append = 'and';
+		if (typeof separator === 'undefined') separator = ',';
+
+		let list_str;
+		
+		if (typeof list === 'string') list = list.split(separator);
+		if (list.length > 1){
+			list_str = list;
+			let list_str_len = list_str.length,
+				maxDest = list_str_len-3,
+				i = 0;
+			list_str.splice(list_str_len-1,0,append);
+			while (i <= maxDest){
+				if (i === list_str_len-1)
+					continue;
+				list_str[i] += ',';
+				i++;
+			}
+			list_str = list_str.join(' ');
+		}
+		else list_str = list[0];
+		return list_str;
+	}
 });
-//# sourceMappingURL=script.js.map
